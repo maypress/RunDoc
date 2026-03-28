@@ -7,3 +7,4 @@
 ```bash run
 echo "Hello, RunDoc!"
 # expect: Hello, RunDoc!
+```
