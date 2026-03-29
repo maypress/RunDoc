@@ -39,6 +39,16 @@ func Parse(file string) error {
 		return fmt.Errorf("unsupported file extension: %s", fileExtension)
 	}
 
+	switch fileExtension {
+		case ".md":
+				fmt.Println("fileExtensions md parser")
+				return nil
+
+		default:
+				fmt.Printf("Other file type: %s", fileExtension)
+				return nil
+	}
+
 	// Реализация парсирования данных исходя из формата, через функции из других файлов. Условно - /types/shell.go, types/go.go, types/python.go, просто вызов функции + проверка расширения файлов через switch
 	// Parse(file) 
 	// -> определяет тип 
