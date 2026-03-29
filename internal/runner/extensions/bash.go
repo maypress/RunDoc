@@ -1,18 +1,20 @@
-// bash runner
-
 package extensions
 
 import (
 	"bytes"
 	"os/exec"
 	"strings"
-
-	"github.com/maypress/RunDoc/internal/runner"
 )
 
 type BashRunner struct{}
 
-func (r BashRunner) Run(code []string) runner.Result {
+type Result struct {
+	Output   string
+	ExitCode int
+	Error    error
+}
+
+func (r BashRunner) Run(code []string) Result {
 	cmd := exec.Command("bash", "-c", strings.Join(code, "\n"))
 
 	var stdout, stderr bytes.Buffer
@@ -25,7 +27,7 @@ func (r BashRunner) Run(code []string) runner.Result {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		} else {
-			return runner.Result{Error: err, ExitCode: -1}
+			return Result{Error: err, ExitCode: -1}
 		}
 	}
 
@@ -34,5 +36,5 @@ func (r BashRunner) Run(code []string) runner.Result {
 		output += stderr.String()
 	}
 
-	return runner.Result{Output: output, ExitCode: exitCode}
+	return Result{Output: output, ExitCode: exitCode}
 }

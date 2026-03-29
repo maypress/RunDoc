@@ -6,14 +6,8 @@ import (
 	"github.com/maypress/RunDoc/internal/runner/extensions"
 )
 
-type Result struct {
-	Output   string
-	ExitCode int
-	Error    error
-}
-
 type Runner interface {
-	Run(code []string) Result
+	Run(code []string) extensions.Result
 }
 
 func GetRunner(language string) (Runner, error) {

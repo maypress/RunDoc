@@ -1,7 +1,4 @@
-// Валидация вывода.
-// Сравнивает реальный вывод команды с ожидаемым.
-// Поддерживает точное совпадение, регулярные выражения и проверку exit code.
-
+// Package validator проверяет соответствие вывода ожиданиям
 package validator
 
 import (
@@ -10,14 +7,16 @@ import (
 	"strings"
 
 	"github.com/maypress/RunDoc/internal/parser"
-	"github.com/maypress/RunDoc/internal/runner"
+	"github.com/maypress/RunDoc/internal/runner/extensions"
 )
 
 // Validate проверяет результат выполнения на соответствие ожиданиям
-func Validate(block parser.CodeBlock, result runner.Result) error {
+func Validate(block parser.CodeBlock, result extensions.Result) error {
 	// Проверка exit code
-	if block.ExpectExit != 0 && result.ExitCode != block.ExpectExit {
-		return fmt.Errorf("exit code mismatch: expected %d, got %d", block.ExpectExit, result.ExitCode)
+	if block.ExpectExit != 0 {
+		if result.ExitCode != block.ExpectExit {
+			return fmt.Errorf("exit code mismatch: expected %d, got %d", block.ExpectExit, result.ExitCode)
+		}
 	}
 
 	// Проверка регулярного выражения

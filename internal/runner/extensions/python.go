@@ -1,20 +1,15 @@
-// go runner
-
 package extensions
 
 import (
 	"bytes"
 	"os/exec"
 	"strings"
-
-	"github.com/maypress/RunDoc/internal/runner"
 )
 
-type GoRunner struct{}
+type PythonRunner struct{}
 
-func (r GoRunner) Run(code []string) runner.Result {
-	cmd := exec.Command("go", "run", "-")
-	cmd.Stdin = strings.NewReader(strings.Join(code, "\n"))
+func (r PythonRunner) Run(code []string) Result {
+	cmd := exec.Command("python", "-c", strings.Join(code, "\n"))
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -26,7 +21,7 @@ func (r GoRunner) Run(code []string) runner.Result {
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			exitCode = exitErr.ExitCode()
 		} else {
-			return runner.Result{Error: err, ExitCode: -1}
+			return Result{Error: err, ExitCode: -1}
 		}
 	}
 
@@ -35,5 +30,5 @@ func (r GoRunner) Run(code []string) runner.Result {
 		output += stderr.String()
 	}
 
-	return runner.Result{Output: output, ExitCode: exitCode}
+	return Result{Output: output, ExitCode: exitCode}
 }
