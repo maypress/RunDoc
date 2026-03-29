@@ -8,3 +8,9 @@
 echo "Hello, RunDoc!"
 # expect: Hello, RunDoc!
 ```
+
+## Пример 2: Bash + арифметика
+```bash run
+echo 1+1
+# expect: 1+1
+```
