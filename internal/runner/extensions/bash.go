@@ -3,6 +3,7 @@ package extensions
 import (
 	"bytes"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -15,7 +16,17 @@ type Result struct {
 }
 
 func (r BashRunner) Run(code []string) Result {
-	cmd := exec.Command("bash", "-c", strings.Join(code, "\n"))
+	script := strings.Join(code, "\n")
+	
+	var cmd *exec.Cmd
+	
+	if runtime.GOOS == "windows" {
+		// Для Windows используем echo без кавычек
+		script = strings.ReplaceAll(script, `"`, "")
+		cmd = exec.Command("cmd", "/c", script)
+	} else {
+		cmd = exec.Command("bash", "-c", script)
+	}
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -35,6 +46,10 @@ func (r BashRunner) Run(code []string) Result {
 	if stderr.Len() > 0 {
 		output += stderr.String()
 	}
+	
+	// Нормализуем вывод
+	output = strings.TrimSpace(output)
+	output = strings.ReplaceAll(output, "\r", "")
 
 	return Result{Output: output, ExitCode: exitCode}
 }
