@@ -6,16 +6,18 @@
 package parser
 
 import (
+	"bufio"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 )
 
-// В Go НЕЛЬЗЯ сделать константу-массив, поэтому используем переменную
-var ALLOWED_FILE_EXTENTIONS = []string{".md", ".txt", ".json"}
+var allowedExtensions = []string{".md", ".txt", ".json"}
 
+// isExtensionAllowed проверяет, разрешено ли расширение файла
 func isExtensionAllowed(ext string) bool {
-	// Используем range вместо C-стиля цикла
-	for _, allowedExt := range ALLOWED_FILE_EXTENTIONS {
+	for _, allowedExt := range allowedExtensions {
 		if ext == allowedExt {
 			return true
 		}
@@ -23,37 +25,88 @@ func isExtensionAllowed(ext string) bool {
 	return false
 }
 
-// Основная функция, определяющая последовательность
-func Parse(file string) error {
-	// Убираем fmt.Println, парсер не должен ничего выводить
-	// fmt.Println("parse: file=" + file);
+// CodeBlock представляет один исполняемый блок кода из документации
+type CodeBlock struct {
+	Language     string
+	Code         []string
+	ExpectOutput []string
+	ExpectRegex  string
+	ExpectExit   int
+}
 
-	fileExtension := filepath.Ext(file)
-	isFileExtensionAllowed := isExtensionAllowed(fileExtension)
-	
-	// Убираем отладочный вывод
-	// fmt.Printf("parse: fileExtension= %s isFileExtentisonAllowed=%t", 
-	// 				fileExtension, isFileExtensionAllowed);
+// ParseResult содержит результат парсинга файла
+type ParseResult struct {
+	Blocks   []CodeBlock
+	FilePath string
+}
 
-	if !isFileExtensionAllowed {
-		return fmt.Errorf("unsupported file extension: %s", fileExtension)
+// Parse анализирует markdown файл и извлекает исполняемые блоки кода
+func Parse(filePath string) (*ParseResult, error) {
+	ext := filepath.Ext(filePath)
+	if !isExtensionAllowed(ext) {
+		return nil, fmt.Errorf("unsupported file extension: %s", ext)
 	}
 
-	switch fileExtension {
-		case ".md":
-				fmt.Println("fileExtensions md parser")
-				return nil
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
 
-		default:
-				fmt.Printf("Other file type: %s", fileExtension)
-				return nil
+	var blocks []CodeBlock
+	scanner := bufio.NewScanner(file)
+
+	var currentBlock *CodeBlock
+	var inCodeBlock bool
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Начало блока кода
+		if strings.HasPrefix(line, "```") && !inCodeBlock {
+			parts := strings.Fields(strings.TrimPrefix(line, "```"))
+			if len(parts) >= 2 && parts[1] == "run" {
+				currentBlock = &CodeBlock{
+					Language: parts[0],
+					Code:     []string{},
+				}
+				inCodeBlock = true
+			}
+			continue
+		}
+
+		// Конец блока кода
+		if strings.HasPrefix(line, "```") && inCodeBlock {
+			blocks = append(blocks, *currentBlock)
+			currentBlock = nil
+			inCodeBlock = false
+			continue
+		}
+
+		// Сбор кода внутри блока
+		if inCodeBlock && currentBlock != nil {
+			// Проверка на ожидаемый вывод
+			if strings.HasPrefix(line, "# expect:") {
+				expected := strings.TrimPrefix(line, "# expect:")
+				currentBlock.ExpectOutput = append(currentBlock.ExpectOutput, strings.TrimSpace(expected))
+			} else if strings.HasPrefix(line, "# expect-regex:") {
+				currentBlock.ExpectRegex = strings.TrimPrefix(line, "# expect-regex:")
+			} else if strings.HasPrefix(line, "# expect-exit:") {
+				var exitCode int
+				fmt.Sscanf(strings.TrimPrefix(line, "# expect-exit:"), "%d", &exitCode)
+				currentBlock.ExpectExit = exitCode
+			} else {
+				currentBlock.Code = append(currentBlock.Code, line)
+			}
+		}
 	}
 
-	// Реализация парсирования данных исходя из формата, через функции из других файлов. Условно - /types/shell.go, types/go.go, types/python.go, просто вызов функции + проверка расширения файлов через switch
-	// Parse(file) 
-	// -> определяет тип 
-	// -> вызывает конкретный парсер 
-	// -> получает структуру с блоками кода 
-	// -> возвращает ее вызывающему коду
-	return nil
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading file: %w", err)
+	}
+
+	return &ParseResult{
+		Blocks:   blocks,
+		FilePath: filePath,
+	}, nil
 }
