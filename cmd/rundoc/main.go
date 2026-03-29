@@ -41,12 +41,11 @@ func main() {
 	
 	fmt.Println("\n⏳ Запуск проверки...")
 	
-	// TODO: Здесь будет основная логика
-	var testFilePath string = "../../testdata/sample.md";
-	parser.Parse(testFilePath)
-	
 	fmt.Println("\n✅ RunDoc готов к работе!")
-	fmt.Println("📝 Реализация парсера в процессе...")
+	
+	// TODO: Здесь будет основная логика
+	// var testFilePath string = "../../testdata/sample.md";
+	parser.Parse(filePath)
 }
 
 func printHelp() {
