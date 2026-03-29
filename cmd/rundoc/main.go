@@ -5,8 +5,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/maypress/RunDoc/internal/parser"
+	"github.com/maypress/RunDoc/internal/reporter"
+	"github.com/maypress/RunDoc/internal/runner"
+	"github.com/maypress/RunDoc/internal/validator"
 )
 
 const version = "1.0.0"
@@ -38,20 +42,73 @@ func main() {
 
 	fmt.Println("\n⏳ Запуск проверки...")
 
+	// Парсинг файла
 	result, err := parser.Parse(filePath)
 	if err != nil {
-		fmt.Printf("❌ Ошибка: %v\n", err)
+		fmt.Printf("❌ Ошибка парсинга: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Printf("✅ Найдено блоков кода: %d\n", len(result.Blocks))
+	if len(result.Blocks) == 0 {
+		fmt.Println("⚠️ Исполняемых блоков кода не найдено")
+		return
+	}
 
-	for i, block := range result.Blocks {
-		fmt.Printf("  Блок %d: язык=%s, строк кода=%d\n", i+1, block.Language, len(block.Code))
+	// Выполнение и валидация блоков
+	var reportResults []reporter.ReportResult
+
+	for _, block := range result.Blocks {
+		start := time.Now()
+		
+		// Получение runner для языка
+		runnerImpl, err := runner.GetRunner(block.Language)
+		if err != nil {
+			reportResults = append(reportResults, reporter.ReportResult{
+				Block:    block,
+				Error:    err,
+				Duration: time.Since(start),
+			})
+			continue
+		}
+
+		// Выполнение кода
+		runResult := runnerImpl.Run(block.Code)
+
+		// Валидация результата
+		err = validator.Validate(block, runResult)
+
+		reportResults = append(reportResults, reporter.ReportResult{
+			Block:    block,
+			Output:   runResult.Output,
+			ExitCode: runResult.ExitCode,
+			Error:    err,
+			Duration: time.Since(start),
+		})
+	}
+
+	// Вывод отчета
+	if *verbose {
+		reporter.PrintVerbose(reportResults, filePath)
+	} else {
+		reporter.Print(reportResults, filePath)
+	}
+
+	if *update {
+		fmt.Println("\n⚠️ Режим обновления: функционал в разработке")
+	}
+
+	// Выход с правильным кодом
+	failedCount := 0
+	for _, r := range reportResults {
+		if r.Error != nil {
+			failedCount++
+		}
+	}
+	if failedCount > 0 {
+		os.Exit(1)
 	}
 }
 
-// printHelp выводит справочную информацию об использовании программы
 func printHelp() {
 	fmt.Println("Использование: rundoc [--update] [--verbose] <file.md>")
 	fmt.Println("\nФлаги:")
@@ -63,7 +120,6 @@ func printHelp() {
 	fmt.Println("  rundoc --verbose README.md")
 }
 
-// printHeader выводит шапку программы в verbose режиме
 func printHeader() {
 	fmt.Println("╔════════════════════════════════════════╗")
 	fmt.Printf("║     RunDoc - Executable Documentation v%s     ║\n", version)
